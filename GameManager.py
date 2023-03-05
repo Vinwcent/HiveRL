@@ -17,10 +17,11 @@ class GameManager():
         self.with_rendering = with_rendering
         self.interactive = interactive
 
-
-        self.bug_to_place = None
+        self.bug_to_add = None
         self.turn = 1
         self.player = 1
+
+        self.current_move_positions = None
 
         self._init_game()
 
@@ -57,22 +58,45 @@ class GameManager():
     ### Game functions used by event handler linking interaction, rendering and logic
     ###
 
-    def get_add_positions(self):
+    def start_add_piece(self, bug_name):
         '''
         Get the positions to add new Piece
         '''
-        # If the turn is one then, the piece must be placed in the center
+        # If the turn is one then, the piece must be placed in the center directly
         if self.turn == 1:
-            self.logic_manager.add_piece(position=[14, 6, 0],
-                                         bug_name=self.bug_to_place)
-            self.rendering_manager.update_board_pieces(self.logic_manager.pieces)
+            self.logic_manager.create_select_piece(bug_name=bug_name)
+            self.logic_manager.move_select_piece(position=[14, 6, 0])
+            self._update_board_rendering()
             self._next_turn()
             return
+        elif self.turn == 2:
+            self.logic_manager.create_select_piece(bug_name=bug_name)
+            add_positions = self.logic_manager.get_nested_positions()
+        else:
+            # To change to handle exclusive position
+            self.logic_manager.create_select_piece(bug_name=bug_name)
+            add_positions = self.logic_manager.get_nested_positions()
+
+        if add_positions is not None:
+            self.current_move_positions = add_positions
+
+            # Rendering management
+            if self.with_rendering:
+                self.rendering_manager.highlight_board_positions(add_positions)
 
 
-        if (add_positions := self.logic_manager.get_add_positions()) is not None:
-            self.rendering_manager.highlight_board_positions(add_positions)
+    def move_piece(self, logic_position):
+        self.logic_manager.move_select_piece(logic_position)
+        self._update_board_rendering()
 
+    def get_piece_logic_position(self, sprite_piece):
+        rect_x, rect_y = sprite_piece.rect_position()
+        i = rect_x // 32
+        j = rect_y // 46
+        return [i, j, 0]
+
+    def _update_board_rendering(self):
+        self.rendering_manager.update_board_pieces(self.logic_manager.pieces)
 
     ###
     ### Main

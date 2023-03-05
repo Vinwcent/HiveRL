@@ -39,6 +39,9 @@ class PieceSprite(pg.sprite.Sprite):
 
         self.surf.blit(bug_surf, bug_rect)
 
+    def rect_position(self):
+        return list(self.rect[0:2])
+
 
     def delete(self):
         self.kill()

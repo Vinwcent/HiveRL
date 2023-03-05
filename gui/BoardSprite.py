@@ -17,14 +17,13 @@ class BoardSprite(pg.sprite.Sprite):
 
 
     def update_pieces(self, pieces):
+        self.sprite_pieces = None
         self.sprite_pieces = sprite.Group()
         for piece in pieces:
             pieceSprite = PieceSprite(background_int=1,
                                       bug_name=piece.bug_name)
-            # pieceSprite.surf = pg.transform.scale_by(pieceSprite.surf,
-            #                                       (1/2, 1/2))
 
-            pieceSprite.rect[0] = piece.position[0] * 32 #/ (piece.position[0] % 2 + 1)
+            pieceSprite.rect[0] = piece.position[0] * 32
             pieceSprite.rect[1] = piece.position[1] * 46
             self.sprite_pieces.add(pieceSprite)
 
@@ -38,6 +37,7 @@ class BoardSprite(pg.sprite.Sprite):
 
 
     def _draw_pieces(self):
+        self.surf.fill((210, 130, 0))
         for piece in self.sprite_pieces:
             self.surf.blit(piece.surf, piece.rect)
 

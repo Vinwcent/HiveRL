@@ -13,8 +13,11 @@ class EventHandler():
                  rendering_manager=None,
                  interactive=True):
         self.game_manager = game_manager
+
         self.rendering_manager = rendering_manager
         self.button_manager = self.rendering_manager.button_manager
+        self.board = self.rendering_manager.board
+
         self.interactive = interactive
 
         if self.interactive and rendering_manager is None:
@@ -27,14 +30,30 @@ class EventHandler():
             if event.type == QUIT:
                 sys.exit()
             elif event.type == MOUSEBUTTONDOWN:
-                if (bug_name := self._get_buttons()) is not None:
-                    self.game_manager.bug_to_place = bug_name
-                    self.game_manager.get_add_positions()
+                if (bug_name := self._get_button()) is not None:
+                    self.game_manager.start_add_piece(bug_name=bug_name)
+                elif (piece := self._get_piece()) is not None:
+                    position = self.game_manager.get_piece_logic_position(piece)
+                    self.game_manager.move_piece(position)
+                    print(position)
 
 
 
 
 
+    ###
+    ### Board related events
+    ###
+
+    def _get_piece(self):
+        '''
+        Get the hypothetical piece hovered on the board
+        '''
+        mouse_position = self._get_relative_mouse_position(self.board.rect)
+        for sprite_piece in self.board.sprite_pieces:
+            if sprite_piece.rect.collidepoint(mouse_position):
+                return sprite_piece
+        return None
 
 
 
@@ -43,7 +62,7 @@ class EventHandler():
     ###
 
 
-    def _get_buttons(self):
+    def _get_button(self):
         '''
         Get the hypothetical button hovered in the button manager
         '''
