@@ -14,6 +14,54 @@ class LogicManager():
         self.pieces = []
 
         self.selected_piece = None
+        # A unique ID that increments when a piece is added
+        self.ID = 0
+
+    ###
+    ### Hive Management
+    ###
+
+    def _check_if_hive(self):
+        '''
+        Check if the current board state has a unique hive
+        '''
+        connection_line = [0]
+        check_count = 0
+        while check_count < len(connection_line):
+            piece_to_check = self.pieces[connection_line[check_count]]
+            connections = self._get_connected_IDs(piece_to_check)
+
+            for ID in connections:
+                if not ID in connection_line:
+                    connection_line.append(ID)
+            check_count += 1
+        return len(self.pieces) == len(connection_line)
+
+    def _get_connected_IDs(self, piece):
+        '''
+        Get the array of pieces' IDs that are neighbors of piece but also of the piece that is over it
+        '''
+        connections = []
+        neighbors = self.board.get_neighbor_position(piece.position)
+        for other_piece in self.pieces:
+            if other_piece.position[:2] in neighbors:
+                connections.append(other_piece.ID)
+            elif piece.position == [*other_piece.position, piece.position[2]+1]:
+                connections.append(other_piece.ID)
+        return connections
+
+    def _trim_no_hive_positions(self, positions, piece):
+        '''
+        Return an array of positions where the positions from positions that would break the hive if piece would go on it have been removed
+        '''
+        real_position = piece.position
+        trimmed_positions = []
+        for position in positions:
+            piece.position = position
+            if self._check_if_hive():
+                trimmed_positions.append(position)
+        piece.position = real_position
+        return trimmed_positions if len(trimmed_positions) > 0 else None
 
 
     ###
@@ -47,7 +95,10 @@ class LogicManager():
             return None
         self._select_piece(position)
 
-        return self.board.get_neighbor_sliding(position)
+        init_pos = self.board.get_neighbor_sliding(position)
+        trimmed = self._trim_no_hive_positions(init_pos, piece)
+
+        return trimmed
 
 
     def _is_exclusive(self, position, player):
@@ -72,7 +123,8 @@ class LogicManager():
         '''
         self.selected_piece = Piece(position=[-1, -1, -1],
                                     bug_name=bug_name,
-                                    player=self.game_manager.player)
+                                    player=self.game_manager.player,
+                                    ID = self.ID)
 
     def move_select_piece(self, position):
         '''
@@ -81,7 +133,9 @@ class LogicManager():
         '''
         self.selected_piece.position = position
         if self.selected_piece not in self.pieces:
+            # If not inside, add it to the board and increment ID
             self.pieces.append(self.selected_piece)
+            self.ID += 1
         self.update_board()
 
     def _select_piece(self, position):

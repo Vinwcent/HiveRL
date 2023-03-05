@@ -58,6 +58,8 @@ class GameManager():
     ### Game functions used by event handler linking interaction, rendering and logic
     ###
 
+    ## Button Manager actions' functions
+
     def start_add_piece(self, bug_name):
         '''
         Get the positions to add new Piece
@@ -85,6 +87,7 @@ class GameManager():
 
 
 
+    ## Board actions' functions
 
     def perform_board_action(self, logic_position):
         '''
@@ -99,6 +102,7 @@ class GameManager():
     def _get_moving_position(self, logic_position):
         '''
         Get the moving position of the piece under the given logic position
+        If rendering, the positions are highlighted
         '''
         if (move_positions := self.logic_manager.get_moving_positions(logic_position)) is not None:
             self.current_move_positions = move_positions
@@ -112,6 +116,9 @@ class GameManager():
 
 
     def _move_piece(self, logic_position):
+        '''
+        Move the current selected piece to the logic_position
+        '''
         self.logic_manager.move_select_piece(logic_position)
         self.current_move_positions = []
         self._update_board_rendering()
@@ -123,7 +130,7 @@ class GameManager():
         self.rendering_manager.update_board_pieces(self.logic_manager.pieces)
 
     ###
-    ### Main
+    ### Game Management
     ###
 
     def _next_turn(self):

@@ -23,11 +23,15 @@ class Board():
             self.board_array[(*piece_position,)] = piece_value
 
 
+
     ###
     ### Neighbor functions
     ###
 
     def get_neighbor_position(self, position):
+        '''
+        Particular function that get the x, y position of neighbors in a array
+        '''
         i, j = position[:2]
         raw_neighbors = [[i+2, j],
                          [i-2, j],
