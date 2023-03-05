@@ -20,7 +20,7 @@ class BoardSprite(pg.sprite.Sprite):
         self.sprite_pieces = None
         self.sprite_pieces = sprite.Group()
         for piece in pieces:
-            pieceSprite = PieceSprite(background_int=1,
+            pieceSprite = PieceSprite(background_int=piece.player,
                                       bug_name=piece.bug_name)
 
             pieceSprite.rect[0] = piece.position[0] * 32

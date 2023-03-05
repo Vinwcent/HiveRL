@@ -73,9 +73,8 @@ class GameManager():
             self.logic_manager.create_select_piece(bug_name=bug_name)
             add_positions = self.logic_manager.get_nested_positions()
         else:
-            # To change to handle exclusive position
             self.logic_manager.create_select_piece(bug_name=bug_name)
-            add_positions = self.logic_manager.get_nested_positions()
+            add_positions = self.logic_manager.get_exclusive_nested_positions(self.player)
 
         if add_positions is not None:
             self.current_move_positions = add_positions
@@ -85,15 +84,40 @@ class GameManager():
                 self.rendering_manager.highlight_board_positions(add_positions)
 
 
-    def move_piece(self, logic_position):
-        self.logic_manager.move_select_piece(logic_position)
-        self._update_board_rendering()
 
-    def get_piece_logic_position(self, sprite_piece):
-        rect_x, rect_y = sprite_piece.rect_position()
-        i = rect_x // 32
-        j = rect_y // 46
-        return [i, j, 0]
+
+    def perform_board_action(self, logic_position):
+        '''
+        Move or get moving position on the board
+        '''
+        if logic_position in self.current_move_positions:
+            self._move_piece(logic_position)
+        else:
+            self._get_moving_position(logic_position)
+
+
+    def _get_moving_position(self, logic_position):
+        '''
+        Get the moving position of the piece under the given logic position
+        '''
+        if (move_positions := self.logic_manager.get_moving_positions(logic_position)) is not None:
+            self.current_move_positions = move_positions
+
+            # Rendering Management
+            if self.with_rendering:
+                self.rendering_manager.highlight_board_positions(move_positions)
+        else:
+            if self.with_rendering:
+                self._update_board_rendering()
+
+
+    def _move_piece(self, logic_position):
+        self.logic_manager.move_select_piece(logic_position)
+        self.current_move_positions = []
+        self._update_board_rendering()
+        self._next_turn()
+
+
 
     def _update_board_rendering(self):
         self.rendering_manager.update_board_pieces(self.logic_manager.pieces)
@@ -104,7 +128,7 @@ class GameManager():
 
     def _next_turn(self):
         self.turn += 1
-        self.player = 1 if self.player == 0 else 0
+        self.player = 1 if self.player == 2 else 2
 
     def start_game(self):
         '''

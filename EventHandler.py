@@ -29,13 +29,12 @@ class EventHandler():
         for event in events:
             if event.type == QUIT:
                 sys.exit()
+            # Interactive  events
             elif event.type == MOUSEBUTTONDOWN:
-                if (bug_name := self._get_button()) is not None:
+                if (bug_name := self._get_button_bug_name()) is not None:
                     self.game_manager.start_add_piece(bug_name=bug_name)
-                elif (piece := self._get_piece()) is not None:
-                    position = self.game_manager.get_piece_logic_position(piece)
-                    self.game_manager.move_piece(position)
-                    print(position)
+                elif (logic_position := self._get_logic_position_from_mouse()) is not None:
+                    self.game_manager.perform_board_action(logic_position)
 
 
 
@@ -56,15 +55,33 @@ class EventHandler():
         return None
 
 
+    def _get_piece_logic_position(self, sprite_piece):
+        '''
+        Get the logic position of a sprite piece
+        '''
+        rect_x, rect_y = sprite_piece.rect_position()
+        i = rect_x // 32
+        j = rect_y // 46
+        return [i, j, 0]
+
+    def _get_logic_position_from_mouse(self):
+        '''
+        Get logic position from the sprite hovered by the mouse if it exists
+        '''
+        if (piece := self._get_piece()) is not None:
+            logic_position = self._get_piece_logic_position(piece)
+            return logic_position
+        return None
+
 
     ###
     ### Button Manager related events
     ###
 
 
-    def _get_button(self):
+    def _get_button_bug_name(self):
         '''
-        Get the hypothetical button hovered in the button manager
+        Get the bug name of the hypothetical button hovered in the button manager
         '''
         mouse_position = self._get_relative_mouse_position(self.button_manager.rect)
         for button in self.button_manager.buttons:
