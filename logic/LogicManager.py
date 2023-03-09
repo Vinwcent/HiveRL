@@ -96,8 +96,6 @@ class LogicManager():
         piece = self._get_piece_at_position(position)
         if piece.player != self.game_manager.player:
             return None
-        # Select the piece if it belongs to us
-        self._select_piece(position)
 
         # Instantly give up if the position is crucial to maintain
         # the hive
@@ -201,7 +199,7 @@ class LogicManager():
         self.update_board()
         self.selected_piece = None
 
-    def _select_piece(self, position):
+    def select_piece(self, position):
         # Classic one-liner to get the first piece matching the position condition
         if (possible_piece := self._get_piece_at_position(position)) is not None:
             self.selected_piece = possible_piece
@@ -221,4 +219,12 @@ class LogicManager():
 
     def update_board(self):
         self.board.update(self.pieces)
+
+    ###
+    ### RL Functions
+    ###
+
+    def get_board_array_and_pieces(self):
+        return (self.board.board_array, self.pieces)
+
 

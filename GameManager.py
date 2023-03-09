@@ -8,7 +8,7 @@ from gui.ButtonManager import ButtonManager
 from EventHandler import EventHandler
 
 from logic.LogicManager import LogicManager
-from Utilities import amounts_of_pieces
+from Utilities import amounts_of_pieces, name_dic
 
 
 
@@ -30,6 +30,9 @@ class GameManager():
         self.player = 1
 
         self.current_move_positions = []
+
+        # Bool to assess the end of the game (someone won)
+        self.finish = False
 
 
 
@@ -69,6 +72,7 @@ class GameManager():
                                                   board=board,
                                                   button_manager=self.button_manager,
                                                   size=screen_size)
+        self.button_manager.init_buttons()
 
     ###
     ### Game functions used by event handler linking interaction, rendering and logic
@@ -129,6 +133,7 @@ class GameManager():
         '''
         if (move_positions := self.logic_manager.get_moving_positions(logic_position)) is not None:
             self.current_move_positions = move_positions
+            self.logic_manager.select_piece(logic_position)
 
             # Rendering Management
             if self.with_rendering:
@@ -190,7 +195,7 @@ class GameManager():
         if (looser_piece := self.logic_manager.bee_surrounded()) is not None:
             winner = 1 if looser_piece.player == 2 else 2
             print(f"Winner is {winner}")
-            sys.exit()
+            self.finish = True
 
     def _next_turn(self):
         self._check_win()
@@ -198,22 +203,93 @@ class GameManager():
         self.player = 1 if self.player == 2 else 2
         print(f"Turn {self.turn}")
 
-    def start_game(self):
-        '''
-        Start the game loop to manage events, logic and rendering
-        '''
 
-        self.button_manager.init_buttons()
+    ###
+    ### Game start
+    ###
 
+    def start_full_interactive(self):
+        '''
+        Start the game loop that manage the game for two human
+        players (on the same computer)
+        '''
         while True:
+
+            if self.finish:
+                sys.exit()
+
             self.event_handler.check_events()
 
             if self.with_rendering:
                 self.rendering_manager.render()
 
 
+    ###
+    ### RL Functions
+    ###
+
+    def update_render(self):
+        self.rendering_manager.render()
+
+    def get_state_info(self):
+        board_array, pieces = self.logic_manager.get_board_array_and_pieces()
+        player_1_pieces = {"bee": 0,
+                           "ant": 0,
+                           "spider": 0,
+                           "beetle": 0,
+                           "grasshopper": 0}
+        player_2_pieces = {"bee": 0,
+                           "ant": 0,
+                           "spider": 0,
+                           "beetle": 0,
+                           "grasshopper": 0}
+        for piece in pieces:
+            if piece.player == 1:
+                player_1_pieces[piece.bug_name] += 1
+            else:
+                player_2_pieces[piece.bug_name] += 1
+        info = [player_1_pieces, player_2_pieces]
+        return board_array, info
+
+    def handle_RL_action(self, action):
+        '''
+        Perform RL Action without checking if they are legal
+        '''
+        start_position = action[0]
+        end_position = action[1]
+        print("Start", start_position,
+              end_position)
+        if -1 in start_position:
+            piece_value = start_position[0]
+            bug_name = name_dic[piece_value]
+            self.logic_manager.create_select_piece(bug_name)
+            self._move_piece(end_position)
+        else:
+            self.logic_manager.select_piece(start_position)
+            self._move_piece(end_position)
+
+        self.rendering_manager.render()
+
+    def get_add_actions(self):
+        return
+
+
+    def get_legal_action_space(self):
+        legal_action_space = []
+        if self.turn == 1:
+            legal_action_space = [[[i, -1, -1], [22, 11, 0]]
+                                  for i in range(5)]
+            return legal_action_space
+        elif self.turn == 2:
+            return
+
+
+
+
+
+
 
 if __name__ == "__main__":
     gameManager = GameManager()
-    gameManager.start_game()
+    gameManager.start_full_interactive()
     print("DONE")
