@@ -1,4 +1,5 @@
 import pygame as pg
+import sys
 
 from gui.RenderingManager import RenderingManager
 from gui.BoardSprite import BoardSprite
@@ -7,21 +8,30 @@ from gui.ButtonManager import ButtonManager
 from EventHandler import EventHandler
 
 from logic.LogicManager import LogicManager
+from Utilities import amounts_of_pieces
 
-screen_size = (1000, 800)
+
 
 class GameManager():
+    '''
+    GameManager that enable rendering and calculations out of the box
+    You can choose whether or not you enable rendering and interactivity,
+    the screen_width of the game can also be modified
+    '''
     def __init__(self,
                  with_rendering=True,
-                 interactive=True):
+                 interactive=True,
+                 screen_width=1400):
         self.with_rendering = with_rendering
         self.interactive = interactive
+        self.screen_width = screen_width
 
-        self.bug_to_add = None
         self.turn = 1
         self.player = 1
 
-        self.current_move_positions = None
+        self.current_move_positions = []
+
+
 
         self._init_game()
 
@@ -36,17 +46,23 @@ class GameManager():
         if self.with_rendering:
             self._init_gui()
             self.event_handler = EventHandler(game_manager=self,
-                                              rendering_manager=self.rendering_manager)
+                                              rendering_manager=self.rendering_manager,
+                                              interactive=self.interactive)
         else:
-            self.event_handler = EventHandler(game_manager=self)
+            self.event_handler = EventHandler(game_manager=self,
+                                             interactive=False)
 
         self.logic_manager = LogicManager(game_manager=self)
+
+
 
     def _init_gui(self):
         '''
         Init graphic interface if it is activated
         '''
         display = pg.display
+        screen_size = (self.screen_width, 0.9/1.3*self.screen_width)
+
         board = BoardSprite(screen_size)
         self.button_manager = ButtonManager(screen_size)
         self.rendering_manager = RenderingManager(display=display,
@@ -62,12 +78,16 @@ class GameManager():
 
     def start_add_piece(self, bug_name):
         '''
-        Get the positions to add new Piece
+        Prepare the logic to add a piece and show the positions to add it
         '''
+        # Clean the movements showed
+        self._update_board_rendering()
+
         # If the turn is one then, the piece must be placed in the center directly
         if self.turn == 1:
             self.logic_manager.create_select_piece(bug_name=bug_name)
-            self.logic_manager.move_select_piece(position=[14, 6, 0])
+
+            self.logic_manager.move_select_piece(position=[22, 11, 0])
             self._update_board_rendering()
             self._next_turn()
             return
@@ -93,6 +113,9 @@ class GameManager():
         '''
         Move or get moving position on the board
         '''
+        self._update_board_rendering()
+        print("POSITION CLICK", logic_position)
+        print("AVAILABLE POSITIONS", self.current_move_positions)
         if logic_position in self.current_move_positions:
             self._move_piece(logic_position)
         else:
@@ -119,6 +142,7 @@ class GameManager():
         '''
         Move the current selected piece to the logic_position
         '''
+        print(logic_position)
         self.logic_manager.move_select_piece(logic_position)
         self.current_move_positions = []
         self._update_board_rendering()
@@ -130,12 +154,49 @@ class GameManager():
         self.rendering_manager.update_board_pieces(self.logic_manager.pieces)
 
     ###
+    ### Specific rules
+    ###
+
+    def is_bee_placed(self):
+        return self.logic_manager.is_bee_placed(self.player)
+
+    def is_bee_selected(self):
+        return self.logic_manager.is_bee_selected()
+
+    def can_add(self, bug_name):
+        '''
+        Check if the current player can add bug_name on the board
+        '''
+        current_amount = self.logic_manager.amount_of(bug_name,
+                                                      self.player)
+        return amounts_of_pieces[bug_name] > current_amount
+
+    def no_available_move(self):
+        '''
+        Checks if the current player can play
+        '''
+        # TODO
+        return
+
+
+
+
+    ###
     ### Game Management
     ###
 
+
+    def _check_win(self):
+        if (looser_piece := self.logic_manager.bee_surrounded()) is not None:
+            winner = 1 if looser_piece.player == 2 else 2
+            print(f"Winner is {winner}")
+            sys.exit()
+
     def _next_turn(self):
+        self._check_win()
         self.turn += 1
         self.player = 1 if self.player == 2 else 2
+        print(f"Turn {self.turn}")
 
     def start_game(self):
         '''
@@ -145,7 +206,6 @@ class GameManager():
         self.button_manager.init_buttons()
 
         while True:
-
             self.event_handler.check_events()
 
             if self.with_rendering:

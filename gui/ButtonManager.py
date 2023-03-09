@@ -19,12 +19,12 @@ class ButtonManager(pg.sprite.Sprite):
 
     def __init__(self, screen_size):
         super(ButtonManager, self).__init__()
-        self.surf = pg.Surface((int(screen_size[0]),
-                                int(0.2*screen_size[1])))
+        self.surf = pg.Surface((int(0.1*screen_size[0]),
+                                int(screen_size[1])))
         self.surf.fill((255, 255, 255))
         self.rect = self.surf.get_rect()
-        # Put the manager below
-        self.rect[1] = int(0.8*screen_size[1])
+        # Put the manager right
+        self.rect[0] = int(0.9*screen_size[0])
 
         self.buttons = sprite.Group()
 
@@ -47,6 +47,8 @@ class ButtonManager(pg.sprite.Sprite):
         for count, button in enumerate(self.buttons):
             location = ((count+1)*self.rect[2]/6 - self.button_width/2,
                         self.rect[3]/2 - self.button_height/2)
+            location = (self.rect[2]/2 - self.button_width/2,
+                        ((count+1)*self.rect[3]/6 - self.button_height))
             button.rect[0:2] = location
 
 

@@ -6,6 +6,11 @@ from logic.Piece import Piece
 
 
 class LogicManager():
+    '''
+    The LogicManager makes the link between the pieces, the board and the GameManager.
+    It modifies the board with the pieces array and makes the link between the GameManager
+    and the logic of the board and the pieces
+    '''
 
     def __init__(self,
                  game_manager):
@@ -17,25 +22,13 @@ class LogicManager():
         # A unique ID that increments when a piece is added
         self.ID = 0
 
+
     ###
     ### Hive Management
     ###
-
-    def _check_if_hive(self):
-        '''
-        Check if the current board state has a unique hive
-        '''
-        connection_line = [0]
-        check_count = 0
-        while check_count < len(connection_line):
-            piece_to_check = self.pieces[connection_line[check_count]]
-            connections = self._get_connected_IDs(piece_to_check)
-
-            for ID in connections:
-                if not ID in connection_line:
-                    connection_line.append(ID)
-            check_count += 1
-        return len(self.pieces) == len(connection_line)
+    # This section manage the trimming of positions to keep having a single hive
+    # The idea is to take a piece, create an array of neighbors and repeat the process
+    # on neighbors
 
     def _get_connected_IDs(self, piece):
         '''
@@ -50,29 +43,72 @@ class LogicManager():
                 connections.append(other_piece.ID)
         return connections
 
-    def _trim_no_hive_positions(self, positions, piece):
-        '''
-        Return an array of positions where the positions from positions that would break the hive if piece would go on it have been removed
-        '''
-        real_position = piece.position
-        trimmed_positions = []
-        for position in positions:
-            piece.position = position
-            if self._check_if_hive():
-                trimmed_positions.append(position)
-        piece.position = real_position
-        return trimmed_positions if len(trimmed_positions) > 0 else None
+    def _is_hive_crucial(self, position):
+        piece = self._get_piece_at_position(position)
+        self.pieces.remove(piece)
+        self.board.update(self.pieces)
 
+        is_crucial_for_hive = not self._check_if_hive()
+
+        self.pieces.append(piece)
+        self.board.update(self.pieces)
+        return is_crucial_for_hive
+
+    def _check_if_hive(self):
+        '''
+        Check if the current board state has a unique hive
+        '''
+        check_count = 0
+        connection_line = [self.pieces[check_count].ID]
+        while check_count < len(connection_line):
+            # One liner to get the corresponding piece
+            piece_to_check = next(
+                (piece
+                 for piece in self.pieces
+                 if piece.ID == connection_line[check_count]))
+
+            connections = self._get_connected_IDs(piece_to_check)
+
+            for ID in connections:
+                if not ID in connection_line:
+                    connection_line.append(ID)
+
+            check_count += 1
+
+        return len(self.pieces) == len(connection_line)
 
     ###
     ### Positions Management
     ###
+    # This section is used to calculate an array of positions in various cases
 
     def get_nested_positions(self):
         nested_positions = self.board.get_empty_nested_positions()
         if len(nested_positions) == 0:
             return None
         return nested_positions
+
+
+    def get_moving_positions(self, position):
+        '''
+        Get the moving positions of the piece located at position
+        '''
+        piece = self._get_piece_at_position(position)
+        if piece.player != self.game_manager.player:
+            return None
+        # Select the piece if it belongs to us
+        self._select_piece(position)
+
+        # Instantly give up if the position is crucial to maintain
+        # the hive
+        if self._is_hive_crucial(position):
+            return None
+
+
+        positions = self.board.get_moving_positions(position)
+
+        return positions
+
 
     def get_exclusive_nested_positions(self, player):
         '''
@@ -86,19 +122,9 @@ class LogicManager():
 
         return exclusive_nested if len(exclusive_nested) > 0 else None
 
-    def get_moving_positions(self, position):
-        '''
-        Get the moving positions of the piece located at position
-        '''
-        piece = self._get_piece_at_position(position)
-        if piece.player != self.game_manager.player:
-            return None
-        self._select_piece(position)
 
-        init_pos = self.board.get_neighbor_sliding(position)
-        trimmed = self._trim_no_hive_positions(init_pos, piece)
-
-        return trimmed
+    def get_highest_z(self, position):
+        return self.board.get_highest_z(position)
 
 
     def _is_exclusive(self, position, player):
@@ -106,16 +132,52 @@ class LogicManager():
         Function that checks if a position is exclusive to player
         '''
         neighbors = self.board.get_neighbor_position(position)
-        for piece in self.pieces:
-            if piece.position[:2] in neighbors and piece.player != player:
-                return False
+        for neighbor in neighbors:
+            if (piece := self._get_piece_at_position([*neighbor, 0])) is not None:
+                if piece.player != player:
+                    return False
         return True
 
+    ###
+    ### Specific rules
+    ###
 
+    def is_bee_placed(self, player):
+        for piece in self.pieces:
+            if piece.player == player and piece.bug_name == "bee":
+                return True
+        return False
+
+    def is_bee_selected(self):
+        if self.selected_piece is not None:
+            return self.selected_piece.bug_name == "bee"
+        else:
+            return False
+
+    def bee_surrounded(self):
+        '''
+        Return the first bee piece that is surrounded by 6 pieces and None
+        if there are not
+        '''
+        for piece in self.pieces:
+            if piece.bug_name == "bee" and self.board.is_surrounded(piece.position):
+                return piece
+        return None
+
+
+    def amount_of(self, bug_name, player):
+        amount = 0
+        for piece in self.pieces:
+            if piece.bug_name == bug_name and piece.player == player:
+                amount += 1
+        return amount
 
     ###
     ### Piece Management
     ###
+    # This section makes the connection between the action given by the GameManager and the
+    # logic state of the game
+
 
     def create_select_piece(self, bug_name):
         '''
@@ -137,6 +199,7 @@ class LogicManager():
             self.pieces.append(self.selected_piece)
             self.ID += 1
         self.update_board()
+        self.selected_piece = None
 
     def _select_piece(self, position):
         # Classic one-liner to get the first piece matching the position condition
@@ -151,7 +214,7 @@ class LogicManager():
         piece_at_position = None
         z = 4
         while piece_at_position is None and z >= 0:
-            piece_at_position = next((piece for piece in self.pieces if piece.position == [*position[:2], 0]), None)
+            piece_at_position = next((piece for piece in self.pieces if piece.position == [*position[:2], z]), None)
             z -= 1
         return piece_at_position
 
