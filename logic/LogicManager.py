@@ -227,4 +227,10 @@ class LogicManager():
     def get_board_array_and_pieces(self):
         return (self.board.board_array, self.pieces)
 
+    def get_pieces_positions(self, player):
+        positions = [piece.position
+                     for piece in self.pieces
+                     if piece.player == player]
+        return positions
+
 

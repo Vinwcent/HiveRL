@@ -1,5 +1,6 @@
 import pygame as pg
 import sys
+import numpy as np
 
 from gui.RenderingManager import RenderingManager
 from gui.BoardSprite import BoardSprite
@@ -257,8 +258,6 @@ class GameManager():
         '''
         start_position = action[0]
         end_position = action[1]
-        print("Start", start_position,
-              end_position)
         if -1 in start_position:
             piece_value = start_position[0]
             bug_name = name_dic[piece_value]
@@ -271,21 +270,47 @@ class GameManager():
         self.rendering_manager.render()
 
     def get_add_actions(self):
-        return
+        '''
+        Function to calculate the actions that add a bug for the RL algorithm
+        '''
+        if self.turn == 1:
+            add_positions = [[[i, -1, -1], [22, 11, 0]]
+                             for i in range(1, 6)]
+            return add_positions
+
+        # We check which bug are still available
+        start_positions = [[i, -1, -1] for i in range(1, 6)
+                          if self.can_add(name_dic[i])]
+
+        # Add action is special at turn 2
+        if self.turn == 2:
+            end_positions = self.logic_manager.get_nested_positions()
+        else:
+            end_positions = self.logic_manager.get_exclusive_nested_positions(self.player)
+
+        add_positions = []
+        for start_pos in start_positions:
+            for end_pos in end_positions:
+                add_positions.append([start_pos, end_pos])
+
+        return add_positions
+
 
 
     def get_legal_action_space(self):
         legal_action_space = []
-        if self.turn == 1:
-            legal_action_space = [[[i, -1, -1], [22, 11, 0]]
-                                  for i in range(5)]
-            return legal_action_space
-        elif self.turn == 2:
-            return
 
+        if self.turn == 1 or self.turn == 2:
+            return self.get_add_actions()
 
-
-
+        add_actions = self.get_add_actions()
+        move_actions = []
+        start_moving_positions = self.logic_manager.get_pieces_positions(self.player)
+        for start_pos in start_moving_positions:
+            if (end_positions := self.logic_manager.get_moving_positions(start_pos)) is not None:
+                for end_pos in end_positions:
+                    move_actions.append([start_pos, end_pos])
+        return add_actions + move_actions
 
 
 
