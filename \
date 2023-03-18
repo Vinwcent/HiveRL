@@ -177,8 +177,8 @@ class GameManager():
         '''
         Checks if the current player can play
         '''
-        action_space = self.get_legal_action_space()
-        return len(action_space) == 0
+        # TODO
+        return
 
 
 
@@ -199,8 +199,6 @@ class GameManager():
         self.turn += 1
         self.player = 1 if self.player == 2 else 2
         print(f"Turn {self.turn}")
-        if self.no_available_move():
-            self._next_turn()
 
 
     ###
@@ -212,7 +210,6 @@ class GameManager():
         Start the game loop that manage the game for two human
         players (on the same computer)
         '''
-        self.event_handler.interactive = True
         while True:
 
             if self.finish:
@@ -288,15 +285,7 @@ class GameManager():
         else:
             end_positions = self.logic_manager.get_exclusive_nested_positions(self.player)
 
-        # If bee is not placed, then only the bee can be placed
-        if (self.turn == 5 or self.turn == 6) and not self.is_bee_placed():
-            start_positions = [[1, -1, -1]]
-
-
         add_positions = []
-        if end_positions is None:
-            return add_positions
-
         for start_pos in start_positions:
             for end_pos in end_positions:
                 add_positions.append([start_pos, end_pos])
@@ -311,10 +300,6 @@ class GameManager():
         if self.turn == 1 or self.turn == 2:
             return self.get_add_actions()
 
-        # If bee not placed, return the only add action with bees
-        if (self.turn == 5 or self.turn == 6) and not self.is_bee_placed():
-            return self.get_add_actions()
-
         add_actions = self.get_add_actions()
         move_actions = []
         start_moving_positions = self.logic_manager.get_pieces_positions(self.player)
@@ -323,7 +308,6 @@ class GameManager():
                 for end_pos in end_positions:
                     move_actions.append([start_pos, end_pos])
         return add_actions + move_actions
-
 
 
 

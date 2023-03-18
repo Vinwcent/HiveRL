@@ -1,6 +1,7 @@
-from GameManager import GameManager
+import numpy as np
 
+action_test = np.array([[0, 0, 0],
+                        [0, 0, 0]])
 
-game_manager = GameManager()
-game_manager.turn =2
-game_manager.get_add_actions()
+print(action_test.shape)
+

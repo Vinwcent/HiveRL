@@ -51,7 +51,15 @@ class HiveEnv(gym.Env):
 
         self.game_manager.handle_RL_action(action)
         is_terminated = self.game_manager.finish
-        reward = 1
+        reward = 0
         game_state, info = self.game_manager.get_state_info()
 
         return game_state, reward, is_terminated, False, info
+
+    def get_current_action_space(self):
+        return self.game_manager.get_legal_action_space()
+
+    def get_action_space_from(self, state):
+        dummy_game_manager = GameManager(interactive=False,
+                                        with_rendering=False)
+

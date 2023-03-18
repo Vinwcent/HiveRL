@@ -20,7 +20,6 @@ class Board():
         '''
         self.board_array = np.zeros((45, 22, 5))
         for piece in pieces:
-            print(piece.position)
             piece_position = piece.position
             piece_value = value_dic[piece.bug_name]
 
@@ -155,7 +154,6 @@ class Board():
         while z < 5:
             if self.board_array[(*position[:2], z)] == 0:
                 z -= 1
-                print(z)
                 return z if z != -1 else None
             z += 1
         return None
@@ -232,8 +230,6 @@ class Board():
 
 
             # We add the position with one more z if it is possible
-            print(f"Hypo {hypothetic_slides}")
-            print(f"Occup {[*occupied_neighbor[:2], occupied_neighbor[2] + 1]}")
             if [*occupied_neighbor[:2], occupied_neighbor[2] + 1] in hypothetic_slides:
                 positions.append([*occupied_neighbor[:2], occupied_neighbor[2] + 1])
 
