@@ -1,7 +1,3 @@
-import numpy as np
+from collections import deque
 
-action_test = np.array([[0, 0, 0],
-                        [0, 0, 0]])
-
-print(action_test.shape)
-
+memory = deque([], maxlen=2)
