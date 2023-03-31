@@ -14,8 +14,8 @@ class BoardSprite(pg.sprite.Sprite):
         self.surf = pg.Surface(board_size)
         self.surf.fill((210, 130, 0))
         # We want a max of 22 pieces on the board
-        self.piece_x_scale = (board_size[0]/22) / 64
-        self.piece_y_scale = (board_size[1]/16) / 64
+        self.piece_x_scale = (board_size[0]/44) / 64
+        self.piece_y_scale = (board_size[1]/32) / 64
         self.rect = self.surf.get_rect()
         # Center the board horizontally
 
@@ -34,6 +34,7 @@ class BoardSprite(pg.sprite.Sprite):
             piece_sprite.rect[1] = piece.position[1] * 46 * self.piece_y_scale
             piece_sprite.z = piece.position[2]
 
+            # Beetle modification
             piece_sprite.set_scale(1 - 0.1*piece_sprite.z)
 
             self.sprite_pieces.append(piece_sprite)

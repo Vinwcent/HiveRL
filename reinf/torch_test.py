@@ -3,6 +3,7 @@ import time
 import random
 import math
 import numpy as np
+import time
 
 # Modify the path to work from main folder
 import sys, os
@@ -13,17 +14,24 @@ from reinf.networks import DQN, NetworkManager
 from reinf.memory import ReplayMemory, Transition
 from reinf.Agent import Agent
 
+from termcolor import colored
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
 device = torch.device("mps")
-env = HiveEnv(render_mode="human", mode="attack")
 
-agent = Agent(eps=0.2, lr=1e-05, device=device)
-agent.load_models("test_1_100", "attack")
-training = True
+mode = "attack"
+training = False
+render_mode = "human"
+
+agent = Agent(eps=1.0, lr=1e-03, device=device, batch_size=32)
+#agent.load_models(name="test_1_200", mode="attack")
+
+
+env = HiveEnv(render_mode=render_mode, mode=mode)
 n_episodes = 100000
 amount_of_win = 0
 
@@ -31,16 +39,16 @@ n_models = len(os.listdir("models/attack")) // 2
 n_updates = 0
 step = 0
 
+
 for episode in range(n_episodes):
-    done = False
     state, info = env.reset()
     state = torch.Tensor(state)
     state = state.to(device)
     state = torch.moveaxis(state, 2, 0)
-    if step >= 200:
-        step = 0
-        agent.reset_memory()
-    while not done and step<200:
+
+    done = False
+    step = 0
+    while not done:
         # Get information about environment in numpy version
         try:
             action, action_tensor = agent.get_play_action(state, env)
@@ -56,6 +64,8 @@ for episode in range(n_episodes):
             next_state = torch.Tensor(next_state)
             next_state = next_state.to(device)
             next_state = torch.moveaxis(next_state, 2, 0)
+
+
 
 
         # Compute the action space and store it with all informations for replay
@@ -76,17 +86,22 @@ for episode in range(n_episodes):
             state = torch.moveaxis(state, 2, 0)
             step += 1
 
+        if done:
+            print("Game ended")
+
         updated = 0
         if training:
             updated = agent.update_policy_network()
         if updated == 1:
             n_updates += 1
             if n_updates % 10 == 0:
-                print(f"Remaining until save {100 - n_updates % 1500}")
+                text = colored(f"Remaining until save {100 - n_updates % 100}", "yellow")
+                print(text)
 
-            if n_updates % 1500 == 0:
-                agent.save_models(f"test_{n_models+1}_{n_updates}", mode="attack")
-                print("Model saved")
+            if n_updates % 100 == 0:
+                agent.save_models(f"test_{n_models+1}_{n_updates}", mode=mode)
+                text = colored("Model Saved", "red")
+                print(text)
 
 
 

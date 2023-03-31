@@ -34,6 +34,7 @@ class HiveEnv(gym.Env):
         assert render_mode is None or render_mode in self.metadata["render_mode"]
         self.render_mode = render_mode
         self.game_manager = None
+        self.player = None
         self.mode = mode
 
 
@@ -43,6 +44,7 @@ class HiveEnv(gym.Env):
         with_rendering = self.render_mode == "human"
         self.game_manager = GameManager(interactive=False,
                                         with_rendering=with_rendering)
+        self.player = self.game_manager.player
 
         game_state, info = self.game_manager.get_state_info()
 
@@ -52,24 +54,17 @@ class HiveEnv(gym.Env):
 
         # Get the next state for the current player and the reward associated to
         # the transition to this state
-        player_game_state, reward, info = self.game_manager.handle_RL_action(action, self.mode)
-
-        # Get the state for the next player
-        enemy_game_state, info = self.game_manager.get_state_info()
+        next_state, info = self.game_manager.handle_RL_action(action, self.mode)
+        self.player = self.game_manager.player
 
         # We check if the game is ended
-        is_terminated = self.game_manager.finish_type != 0
+        is_terminated = self.game_manager.winner != 0
 
+        # Signal to see that the game is finished
         if is_terminated:
-            # If the game is finished, there's no next state
-            player_game_state = None
-            enemy_game_state = None
+            next_state = None
 
-            # If it is, it means the agent made a finishing move
-            # and we reward him with a loosing move or winning move
-            reward = self.game_manager.finish_type * 100
-
-        return player_game_state, enemy_game_state, reward, is_terminated, info
+        return next_state, is_terminated, info
 
     def get_current_action_space(self):
         return self.game_manager.get_legal_action_space()
@@ -77,4 +72,11 @@ class HiveEnv(gym.Env):
     def get_action_space_from(self, state):
         dummy_game_manager = GameManager(interactive=False,
                                         with_rendering=False)
+
+    def get_amount_blocking(self, player):
+        return self.game_manager.get_amount_blocking_bee(player)
+
+    def get_winner(self):
+        return self.game_manager.winner
+
 

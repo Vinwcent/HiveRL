@@ -15,7 +15,7 @@ class Agent:
                  eps=1.0,
                  memory_size=10000,
                  batch_size=128,
-                 tau=0.005):
+                 tau=0.01):
 
         self.device = device
 
@@ -77,13 +77,12 @@ class Agent:
 
         # Compute the state action values tensor
         state_action_values = self.policy_net(batch_state, batch_action).squeeze()
-
         next_state_action_values = torch.zeros(self.batch_size)
         next_state_action_values = next_state_action_values.to(self.device)
         with torch.no_grad():
             next_state_action_values[non_final_mask] = self.target_net(non_final_next_states, non_final_next_actions).squeeze()
 
-        expected_value = (next_state_action_values * self.gamma) + batch_reward
+        expected_value = (next_state_action_values * self.gamma) + batch_reward.squeeze()
 
         criterion = nn.SmoothL1Loss()
         loss = criterion(state_action_values, expected_value)

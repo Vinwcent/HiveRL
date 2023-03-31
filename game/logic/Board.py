@@ -12,13 +12,13 @@ class Board():
     '''
 
     def __init__(self):
-        self.board_array = np.zeros((45, 22, 5))
+        self.board_array = np.zeros((88, 45, 5))
 
     def update(self, pieces):
         '''
         Update the board to the game state described by pieces
         '''
-        self.board_array = np.zeros((45, 22, 5))
+        self.board_array = np.zeros((88, 45, 5))
         for piece in pieces:
             piece_position = piece.position
             piece_value = value_dic[piece.bug_name]
@@ -107,8 +107,8 @@ class Board():
         Function to get the array of nested unoccupied positions
         '''
         nested = []
-        for i in range(45):
-            for j in range(22):
+        for i in range(88):
+            for j in range(45):
                 if self.board_array[i, j, 0] == 0 and self._check_if_nested([i, j]):
                     nested.append([i, j, 0])
 
@@ -151,7 +151,7 @@ class Board():
 
     def _check_if_inboard(self, position):
         i, j = position[:2]
-        if (i < 45) and (j < 22) and (i > 0) and (j > 0):
+        if (i < 88) and (j < 45) and (i > 0) and (j > 0):
             return True
         return False
 

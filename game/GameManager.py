@@ -37,7 +37,7 @@ class GameManager():
         self.current_move_positions = []
 
         # Bool to assess the end of the game (someone won)
-        self.finish_type = 0
+        self.winner = 0
 
 
 
@@ -93,7 +93,7 @@ class GameManager():
         if self.turn == 1:
             self.logic_manager.create_select_piece(bug_name=bug_name)
 
-            self.logic_manager.move_select_piece(position=[22, 11, 0])
+            self.logic_manager.move_select_piece(position=[43, 22, 0])
             self._update_board_rendering()
             self._next_turn()
             return
@@ -122,6 +122,7 @@ class GameManager():
         self._update_board_rendering()
         if logic_position in self.current_move_positions:
             self._move_piece(logic_position)
+            self._next_turn()
         else:
             self._get_moving_position(logic_position)
 
@@ -192,18 +193,19 @@ class GameManager():
 
     def _check_win(self):
         if (looser_piece := self.logic_manager.bee_surrounded()) is not None:
-            winner = 1 if looser_piece.player == 2 else 2
-            print(f"Winner is player {winner}")
-
-            # We define the type of end game it was, if the winner made a winning move
-            # or if the looser made a loosing move
-            self.finish_type = 1 if winner == self.player else -1
+            self.winner = 1 if looser_piece.player == 2 else 2
+            print(f"Winner is player {self.winner}")
 
     def _next_turn(self):
         self._check_win()
         self.turn += 1
         self.player = 1 if self.player == 2 else 2
         #print(f"Turn {self.turn}")
+
+        self.logic_manager.try_normalize_board(self.player)
+        if self.with_rendering:
+            self._update_board_rendering()
+
         if self.no_available_move():
             self._next_turn()
 
@@ -220,7 +222,7 @@ class GameManager():
         self.event_handler.interactive = True
         while True:
 
-            if self.finish:
+            if self.winner != 0:
                 sys.exit()
 
             self.event_handler.check_events()
@@ -233,9 +235,12 @@ class GameManager():
     ### RL Functions
     ###
 
-    def _get_amount_blocking_bee(self):
-        amount_ally, amount_enemy = self.logic_manager.amount_blocking_bee(self.player)
-        return amount_ally, amount_enemy
+    def get_amount_blocking_bee(self, player):
+        '''
+        Get the amount of pieces around the bee of the player's enemy
+        '''
+        amount_enemy = self.logic_manager.amount_blocking_bee(player)
+        return amount_enemy
 
     def update_render(self):
         self.rendering_manager.render()
@@ -243,7 +248,7 @@ class GameManager():
     def get_state_info(self):
         board_array, pieces = self.logic_manager.get_board_array_and_pieces()
 
-        current_player_pieces = np.zeros((45, 22, 5))
+        current_player_pieces = np.zeros((88, 45, 5))
         current_player_pieces_positions = np.array([piece.position
                                            for piece in pieces
                                            if piece.player == self.player])
@@ -293,28 +298,21 @@ class GameManager():
             self.logic_manager.select_piece(start_position)
             self._move_piece(end_position)
 
-        resulting_state, info = self.get_state_info()
-        neg_reward, pos_reward = self._get_amount_blocking_bee()
-        if reward_mode == "attack":
-            reward = pos_reward
-        elif reward_mode == "balanced":
-            reward = pos_reward - neg_reward
-        else:
-            reward = 0
-
+        # Can be the same player here
         self._next_turn()
+        next_state, info = self.get_state_info()
 
         if self.with_rendering:
             self.rendering_manager.render()
 
-        return resulting_state, reward, info
+        return next_state, info
 
     def get_add_actions(self):
         '''
         Function to calculate the actions that add a bug for the RL algorithm
         '''
         if self.turn == 1:
-            add_positions = [[[i, -1, -1], [22, 11, 0]]
+            add_positions = [[[i, -1, -1], [43, 22, 0]]
                              for i in range(1, 6)]
             return add_positions
 

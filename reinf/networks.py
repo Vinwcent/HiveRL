@@ -19,6 +19,8 @@ class ResBlock(nn.Module):
             nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride),
             nn.BatchNorm2d(out_channels))
 
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.stride = stride
 
 
@@ -27,7 +29,8 @@ class ResBlock(nn.Module):
         residual = x
         output = self.conv1(x)
         output = self.conv2(output)
-        residual = self.downsampler(residual)
+        if self.stride != 1 or self.in_channels != self.out_channels:
+            residual = self.downsampler(residual)
         output += residual
         output = self.relu(output)
         return output
@@ -37,28 +40,22 @@ class DQN(nn.Module):
 
     def __init__(self):
         super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(10, 32, 2)
-        self.action_flattener = nn.Flatten()
-        self.linear_action_1 = nn.Linear(6, 44*21)
-
-        self.block1 = ResBlock(33, 64, stride=2)
-        self.block2 = ResBlock(64, 128, stride=2)
-        self.block3 = ResBlock(128, 256, stride=1)
-        self.block4 = ResBlock(256, 512, stride=2)
-
+        self.conv1 = nn.Conv2d(11, 128, 3)
+        self.block1 = ResBlock(128, 128, stride=1)
+        self.block2 = ResBlock(128, 256, stride=2)
+        self.block3 = ResBlock(256, 256, stride=1)
+        self.block4 = ResBlock(256, 256, stride=2)
         self.value_flattener = nn.Flatten()
-        self.end_linear_1 = nn.Linear(9216, 512)
-        self.end_linear_2 = nn.Linear(512, 1)
+        self.end_linear_1 = nn.Linear(61952, 1)
 
     def forward(self, state, action):
-        state = self.conv1(state)
+        action_tensor = torch.flatten(action, start_dim=1, end_dim=-1)
+        action_tensor = action_tensor.repeat(1, 660)
+        action_tensor = action_tensor.view((-1, 1, 88, 45))
 
+        value = torch.cat((state, action_tensor), 1)
 
-        action = self.action_flattener(action)
-        action = self.linear_action_1(action)
-        action = action.view((-1, 1, 44, 21))
-
-        value = torch.cat((state, action), 1)
+        value = self.conv1(value)
         value = self.block1(value)
         value = self.block2(value)
         value = self.block3(value)
@@ -66,7 +63,6 @@ class DQN(nn.Module):
 
         value = self.value_flattener(value)
         value = self.end_linear_1(value)
-        value = self.end_linear_2(value)
 
         return value
 

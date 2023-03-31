@@ -183,7 +183,7 @@ class LogicManager():
         if enemy_bee is not None:
             amount_enemy = self.board.amount_surrounding(enemy_bee.position)
 
-        return amount_ally, amount_enemy
+        return amount_enemy
 
 
     def amount_of(self, bug_name, player):
@@ -255,5 +255,61 @@ class LogicManager():
                      for piece in self.pieces
                      if piece.player == player]
         return positions
+
+    def _get_bee(self, player):
+        bee = None
+        for piece in self.pieces:
+            if piece.bug_name == "bee" and piece.player == player:
+                bee = piece
+        return bee
+
+
+    def _center_bee(self, player):
+        '''
+        Function used to center the white bee to reduce
+        the amount of states due to translation
+        '''
+        center = [43, 22, 0]
+        if (bee := self._get_bee(player)) is not None:
+            bee_position = bee.position
+            x_delta = center[0] - bee_position[0]
+            y_delta = center[1] - bee_position[1]
+
+            for piece in self.pieces:
+                piece.position[0] += x_delta
+                piece.position[1] += y_delta
+        else:
+            return None
+
+    def _return_around_bee(self, player):
+        '''
+        Function to place the non player bee on the right of
+        the player bee to reduce the amount of states due
+        to translation
+
+        This function assumes that the player bee is centered
+        '''
+        other_player = 2 if player == 1 else 1
+        if (player_bee := self._get_bee(player)) is not None and (other_player_bee := self._get_bee(other_player)) is not None:
+            x_delta = player_bee.position[0] - other_player_bee.position[0]
+            y_delta = player_bee.position[1] - other_player_bee.position[1]
+
+            # Horizontal return
+            if x_delta > 0:
+                for piece in self.pieces:
+                    old_delta_x = player_bee.position[0] - piece.position[0]
+                    piece.position[0] += 2*old_delta_x
+            # Vertical return
+            if y_delta < 0:
+                for piece in self.pieces:
+                    old_delta_y = player_bee.position[1] - piece.position[1]
+                    piece.position[1] += 2*old_delta_y
+
+
+    def try_normalize_board(self, player):
+        self._center_bee(player)
+        self._return_around_bee(player)
+
+
 
 
