@@ -33,15 +33,15 @@ class Board():
 
     def get_neighbor_position(self, position):
         '''
-        Particular function that get the x, y position of neighbors in a array
+        Particular function that get the x, y position of neighbors in a array looking circularly
         '''
         i, j = position[:2]
         raw_neighbors = [[i+2, j],
-                         [i-2, j],
                          [i+1, j+1],
-                         [i+1, j-1],
                          [i-1, j+1],
-                         [i-1, j-1]]
+                         [i-2, j],
+                         [i-1, j-1],
+                         [i+1, j-1]]
         neighbors = []
         for (pos_i, pos_j) in raw_neighbors:
             if self._check_if_inboard([pos_i, pos_j]):

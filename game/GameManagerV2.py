@@ -1,7 +1,6 @@
 import pygame as pg
 import sys
 import numpy as np
-import time
 
 # Modify the path to work from main folder
 import sys, os
@@ -14,11 +13,11 @@ from game.gui.ButtonManager import ButtonManager
 from game.EventHandler import EventHandler
 
 from game.logic.LogicManager import LogicManager
-from game.Utilities import amounts_of_pieces, name_dic, value_dic
+from game.Utilities import amounts_of_pieces, name_dic
 
 
 
-class GameManager():
+class GameManagerV2():
     '''
     GameManager that enable rendering and calculations out of the box
     You can choose whether or not you enable rendering and interactivity,
@@ -43,11 +42,6 @@ class GameManager():
 
 
         self._init_game()
-
-        self.possible_connected_actions = [[x, y, z]
-                                           for x in range(11)
-                                           for y in range(22)
-                                           for z in range(7)]
 
     ###
     ### Initialization
@@ -178,13 +172,15 @@ class GameManager():
         '''
         Check if the current player can add bug_name on the board
         '''
-        return self.logic_manager.can_add(bug_name, self.player)
+        current_amount = self.logic_manager.amount_of(bug_name,
+                                                      self.player)
+        return amounts_of_pieces[bug_name] > current_amount
 
     def no_available_move(self):
         '''
         Checks if the current player can play
         '''
-        action_space = self.logic_manager.get_legal_action_space(self.player, self.turn)
+        action_space = self.get_legal_action_space()
         return len(action_space) == 0
 
 
@@ -206,8 +202,7 @@ class GameManager():
         self.player = 1 if self.player == 2 else 2
         #print(f"Turn {self.turn}")
 
-        self.logic_manager.reload_board_with_connections()
-
+        self.logic_manager.try_normalize_board(self.player)
         if self.with_rendering:
             self._update_board_rendering()
 
@@ -235,116 +230,137 @@ class GameManager():
             if self.with_rendering:
                 self.rendering_manager.render()
 
+
+    ###
+    ### RL Functions
+    ###
+
+    def get_amount_blocking_bee(self, player):
+        '''
+        Get the amount of pieces around the bee of the player's enemy
+        '''
+        amount_enemy = self.logic_manager.amount_blocking_bee(player)
+        return amount_enemy
+
     def update_render(self):
         self.rendering_manager.render()
 
+    def get_state_info(self):
+        board_array, pieces = self.logic_manager.get_board_array_and_pieces()
+
+        current_player_pieces = np.zeros((88, 45, 5))
+        current_player_pieces_positions = np.array([piece.position
+                                           for piece in pieces
+                                           if piece.player == self.player])
+        for position in current_player_pieces_positions:
+            current_player_pieces[(*position,)] = 1
+
+        # We compute the state which is the board piece and the pieces that
+        # belong to the player
+        state = np.concatenate([board_array, current_player_pieces], axis=2)
 
 
-    ###
-    ### Board Action
-    ###
 
-    def handle_board_action(self, action):
+        # Compute played pieces per player for info
+        player_1_pieces = {"bee": 0,
+                           "ant": 0,
+                           "spider": 0,
+                           "beetle": 0,
+                           "grasshopper": 0}
+        player_2_pieces = {"bee": 0,
+                           "ant": 0,
+                           "spider": 0,
+                           "beetle": 0,
+                           "grasshopper": 0}
+        for piece in pieces:
+            if piece.player == 1:
+                player_1_pieces[piece.bug_name] += 1
+            else:
+                player_2_pieces[piece.bug_name] += 1
+        info = [player_1_pieces, player_2_pieces]
+
+
+        return state, info
+
+    def handle_RL_action(self, action, reward_mode):
         '''
-        Perform a board based action
+        Perform RL Action without checking if they are legal and return the
+        state of the current agent post action
         '''
         start_position = action[0]
         end_position = action[1]
         if -1 in start_position:
-            bug_name = name_dic[start_position[0]]
+            piece_value = start_position[0]
+            bug_name = name_dic[piece_value]
             self.logic_manager.create_select_piece(bug_name)
+            self._move_piece(end_position)
         else:
             self.logic_manager.select_piece(start_position)
+            self._move_piece(end_position)
 
-        self._move_piece(end_position)
+        # Can be the same player here
         self._next_turn()
+        next_state, info = self.get_state_info()
+
         if self.with_rendering:
             self.rendering_manager.render()
 
+        return next_state, info
+
+    def get_add_actions(self):
+        '''
+        Function to calculate the actions that add a bug for the RL algorithm
+        '''
+        if self.turn == 1:
+            add_positions = [[[i, -1, -1], [43, 22, 0]]
+                             for i in range(1, 6)]
+            return add_positions
+
+        # We check which bug are still available
+        start_positions = [[i, -1, -1] for i in range(1, 6)
+                          if self.can_add(name_dic[i])]
+
+        # Add action is special at turn 2
+        if self.turn == 2:
+            end_positions = self.logic_manager.get_nested_positions()
+        else:
+            end_positions = self.logic_manager.get_exclusive_nested_positions(self.player)
+
+        # If bee is not placed, then only the bee can be placed
+        if (self.turn == 5 or self.turn == 6) and not self.is_bee_placed():
+            start_positions = [[1, -1, -1]]
+
+
+        add_positions = []
+        if end_positions is None:
+            return add_positions
+
+        for start_pos in start_positions:
+            for end_pos in end_positions:
+                add_positions.append([start_pos, end_pos])
+
+        return add_positions
+
+
 
     def get_legal_action_space(self):
-        return self.logic_manager.get_legal_action_space(self.player, self.turn)
+        legal_action_space = []
 
+        if self.turn == 1 or self.turn == 2:
+            return self.get_add_actions()
 
+        # If bee not placed, return the only add action with bees
+        if (self.turn == 5 or self.turn == 6) and not self.is_bee_placed():
+            return self.get_add_actions()
 
-    ###
-    ### Connected Actions
-    ###
-
-    def get_end_value(self):
-        if self.winner == 0:
-            return 0
-        else:
-            return 1 if self.winner == self.player else -1
-
-    def get_state(self):
-        # Turn 1 and 2 are the same since there's no connection
-        # We need to tell which pieces has been played on turn 1
-        if self.turn == 2:
-            piece = self.logic_manager.pieces[0]
-            return np.ones((22, 7)) * value_dic[piece.bug_name]
-
-        connected_state = self.logic_manager.get_connected_state()
-        if self.player == 2:
-            connected_state = self.logic_manager.revert_connected_array(connected_state)
-
-        return connected_state
-
-    def load_state(self, c_state, turn, player):
-        '''
-        Load a connected state and set the turn
-        '''
-        self.player = player
-        self.turn = turn
-        self.winner = 0
-        if player == 2:
-            c_state = self.logic_manager.revert_connected_array(c_state)
-        self.logic_manager.load_connections_array(c_state)
-
-    def get_legal_connected_action_space(self):
-        return self.logic_manager.get_legal_connected_action_space(self.player, self.turn)
-
-    def handle_connected_action(self, action_index):
-        real_piece_ID = action_index[0] + 1
-        if self.player != 1:
-            real_piece_ID += 11
-
-        start_pos = next((piece.position
-                          for piece in self.logic_manager.pieces
-                          if piece.ID == real_piece_ID), None)
-
-        connected_ID = action_index[1] + 1
-        if self.player != 1:
-            connected_ID = connected_ID + 11 if connected_ID < 12 else connected_ID - 11
-        #print("Real piece ID ", real_piece_ID)
-        #print("Action asked ", action_index)
-        #print("Player ", self.player)
-        #print("connected ID ", connected_ID)
-        #print("IDs ", [piece.ID for piece in self.logic_manager.pieces])
-
-        connected_pos = next((piece.position
-                          for piece in self.logic_manager.pieces
-                          if piece.ID == connected_ID), None)
-
-        # Handle add_actions
-        if start_pos is None:
-            bug_name = self.logic_manager._get_bug_name_from_ID(action_index[0] + 1)
-            bug_index = value_dic[bug_name]
-            start_pos = [bug_index, -1, -1]
-        # Handle turn 1
-        if self.turn == 1:
-            end_pos = [43, 22, 0]
-        else:
-            end_pos = self.logic_manager._apply_connection_index(connected_pos, action_index[2])
-
-        board_action = [start_pos, end_pos]
-        self.handle_board_action(board_action)
-
-        resulting_state = self.get_state()
-        resulting_player = self.player
-        resulting_turn = self.turn
-
-        return resulting_state, resulting_player, resulting_turn
+        add_actions = self.get_add_actions()
+        move_actions = []
+        start_moving_positions = self.logic_manager.get_pieces_positions(self.player)
+        for start_pos in start_moving_positions:
+            if (end_positions := self.logic_manager.get_moving_positions(start_pos)) is not None:
+                for end_pos in end_positions:
+                    move_actions.append([start_pos, end_pos])
+        return add_actions + move_actions
 
 
 
