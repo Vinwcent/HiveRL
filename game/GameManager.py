@@ -27,7 +27,8 @@ class GameManager():
     def __init__(self,
                  with_rendering=True,
                  interactive=True,
-                 screen_width=1400):
+                 screen_width=1400,
+                 winner_verbose=False):
         self.with_rendering = with_rendering
         self.interactive = interactive
         self.screen_width = screen_width
@@ -39,6 +40,7 @@ class GameManager():
 
         # Bool to assess the end of the game (someone won)
         self.winner = 0
+        self.winner_verbose = winner_verbose
 
 
 
@@ -77,9 +79,9 @@ class GameManager():
         board = BoardSprite(screen_size)
         self.button_manager = ButtonManager(screen_size)
         self.rendering_manager = RenderingManager(display=display,
-                                                  board=board,
-                                                  button_manager=self.button_manager,
-                                                  size=screen_size)
+                                                      board=board,
+                                                      button_manager=self.button_manager,
+                                                      size=screen_size)
         self.button_manager.init_buttons()
 
     ###
@@ -198,7 +200,8 @@ class GameManager():
     def _check_win(self):
         if (looser_piece := self.logic_manager.bee_surrounded()) is not None:
             self.winner = 1 if looser_piece.player == 2 else 2
-            print(f"Winner is player {self.winner}")
+            if self.winner_verbose:
+                print(f"Winner is player {self.winner}")
 
     def _next_turn(self):
         self._check_win()

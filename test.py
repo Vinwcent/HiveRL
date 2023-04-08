@@ -1,16 +1,23 @@
-from HiveEnv import HiveEnv
-import time
-import random
+from HiveNet import HiveNet
 import numpy as np
+import torch
 
 
-env = HiveEnv(render_mode="human")
-env.reset()
+# Create an instance of Net
+device = torch.device("mps")
+net = HiveNet(device=device)
 
-for i in range(10000):
-    action_space = env.game_manager.get_legal_action_space()
-    print(np.array(action_space).shape)
-    action = random.choice(action_space)
-    next_state, reward, done, _, _ = env.step(action)
+# Feed it with an example image
+example_state = torch.randn(22, 7)
 
-env.game_manager.start_full_interactive()
+def create_table(n):
+    table = []
+    for i in range(n):
+        table.append((np.zeros((22,7)), np.ones((11,22,7)), np.float64(1)))
+    return table
+
+table = create_table(1000)
+
+probs, value = net.predict(example_state)
+print(probs.shape, value)
+

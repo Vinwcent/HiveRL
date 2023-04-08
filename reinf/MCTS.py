@@ -12,17 +12,19 @@ class MCTS():
     Class used to perform MCTS from a given state
     """
 
-    def __init__(self):
-        #self.net = net
+    def __init__(self, net, n_search, max_depth):
+        self.net = net
+
         # Headless game manager to make MCTS
-        self.game_manager = GameManager(with_rendering=False,
-                                        interactive=False)
+        self.game_manager = GameManager(with_rendering=False)
 
         self.reset_tree()
 
+        self.n_search = n_search
+        # Contrary to go, a state can reoccur so we seed a limit depth not to loop in a series of state during the monte carlo search
+        self.max_depth = max_depth
+
         self.cpuct = 1
-        self.n_sims = 10
-        self.sim_depth = 30
 
         all_actions = [[x, y, z]
                        for x in range(11)
@@ -38,9 +40,9 @@ class MCTS():
         self.V = {}
 
     def get_policy_vector(self, state, turn, player, temperature=1):
-        for i in range(self.n_sims):
+        for i in range(self.n_search):
             self.game_manager.load_state(state, turn, player)
-            self._perform_tree_search(state, self.sim_depth)
+            self._perform_tree_search(state, self.max_depth)
 
         s = self._hash(state)
         visit_counts = np.zeros((11, 22, 7))
@@ -65,7 +67,7 @@ class MCTS():
         probs = visit_counts / visit_counts_sum
         return probs
 
-    def _perform_tree_search(self, state, limit_depth=100, depth=1):
+    def _perform_tree_search(self, state, max_depth=100, depth=1):
         """
         Perform a tree search recursively
         """
@@ -82,8 +84,7 @@ class MCTS():
 
         # Policy of s is unknown so init with network
         if s not in self.P:
-            #self.P[s], value = self.net.predict(self.state)
-            self.P[s], value = np.ones((11, 22, 7)), 0.3
+            self.P[s], value = self.net.predict(state)
             valids = self.game_manager.get_legal_connected_action_space()
 
             sum_probs = np.sum(self.P[s])
@@ -108,11 +109,13 @@ class MCTS():
                     best_value = u
                     best_action_index = a
 
-        if depth >= limit_depth:
-            return -best_value
-
+        current_player = self.game_manager.player
         next_state, next_player, next_turn = self.game_manager.handle_connected_action(best_action_index)
-        value = self._perform_tree_search(next_state, limit_depth, depth+1)
+
+        if depth >= max_depth:
+            return -best_value if current_player != next_player else best_value
+
+        value = self._perform_tree_search(next_state, max_depth, depth+1)
 
         a = best_action_index
         if (s, *a) in self.Q_values:
@@ -123,7 +126,7 @@ class MCTS():
             self.N_sa_counts[(s, *a)] = 1
 
         self.N_s_counts[s] += 1
-        return -value
+        return -value if current_player != next_player else value
 
 
 

@@ -5,13 +5,18 @@ import random
 import time
 import numpy as np
 
-game_manager = GameManager(with_rendering=True,
-                           interactive=False)
+import torch
+
+from reinf.HiveNet import HiveNet
 
 
-Trainer = Trainer(with_rendering=True)
+device = torch.device("mps")
+net = HiveNet(device)
+trainer = Trainer(model_name="test3", net=net, with_rendering=False)
+trainer.load_history_and_net("test2", 7)
 
-Trainer.train()
+
+trainer.train()
 
 #mcts = MCTS()
 #mcts.get_policy_vector(game_manager.get_state(), game_manager.turn, game_manager.player)
