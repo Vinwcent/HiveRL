@@ -14,11 +14,13 @@ class RenderingManager():
                  display,
                  board,
                  button_manager,
-                 size):
+                 size,
+                 no_transparencies=[]):
         self.display = display
         self.size = self.width, self.height = size
         self.board = board
         self.button_manager = button_manager
+        self.no_transparencies = no_transparencies
 
 
         self.sprites = sprite.Group()
@@ -46,7 +48,7 @@ class RenderingManager():
         '''
         Update the sprite pieces group of the board with the pieces given by the logic
         '''
-        self.board.update_pieces(pieces)
+        self.board.update_pieces(pieces, no_transparencies=self.no_transparencies)
 
     def highlight_board_positions(self, positions):
         self.board.add_highlight_pieces(positions)

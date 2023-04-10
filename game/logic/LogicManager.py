@@ -337,16 +337,38 @@ class LogicManager():
         return new_piece
 
 
-    def load_connections_array(self, connection_array, current_ID=None):
+    def load_connections_array(self, connection_array, current_ID=None, first_bug=None):
         """
         Convert recursively the connection state array to a piece array
         """
+        # Turn 1
+        if np.all(connection_array == -1):
+            self.pieces = []
+            self.board.update(self.pieces)
+            return
+
+        # First piece Turn 2 up to 6 if the bee has not been placed
+        if first_bug is not None:
+            self.pieces = []
+            current_ID = self.affect_ID(first_bug, 1)
+            self.pieces = [Piece([43, 22, 0], first_bug, 1, current_ID)]
+
+
+        # Classic loading with bee in the center
         if current_ID is None:
+            self.pieces = []
             current_ID = 1
             self.pieces = [Piece([43, 22, 0], "bee", 1, current_ID)]
 
 
+
         connection_line = np.array(connection_array[current_ID-1], dtype=int)
+
+        # Turn 2 dummy loading
+        if np.all(connection_line == connection_line[0]):
+            self.board.update(self.pieces)
+            return
+
         for index, ID in enumerate(connection_line):
             if ID > 0 and ID not in [piece.ID for piece in self.pieces]:
                 new_piece = self._create_piece_from_connection(current_ID, index, ID)
@@ -410,10 +432,12 @@ class LogicManager():
         '''
         legal_action_space = []
         add_actions = self._get_add_actions(player, turn)
-        if (turn == 1 or
-            turn == 2 or
-            ((turn == 5 or turn == 6) and not self.is_bee_placed(player))):
+        if turn <= 6 and not self.is_bee_placed(player):
             return add_actions
+        #if (turn == 1 or
+            #turn == 2 or
+            #((turn == 5 or turn == 6) and not self.is_bee_placed(player))):
+            #return add_actions
 
         move_actions = []
         start_moving_positions = self.get_pieces_positions(player)
@@ -434,6 +458,10 @@ class LogicManager():
                                  for piece in self.pieces
                                  if piece.position == position), None)
         return hypothetic_piece
+
+    ###
+    ### Manage connected state
+    ###
 
     def get_connected_state(self):
         '''
@@ -460,13 +488,19 @@ class LogicManager():
 
         return connections_array
 
-    def reload_board_with_connections(self):
+    def reload_board_with_connections(self, first_bug=None):
         '''
         Reload the board with the connections array. Mainly used to center
         the board
         '''
         connections_array = self.get_connected_state()
-        self.load_connections_array(connections_array)
+        self.load_connections_array(connections_array, first_bug=first_bug)
+
+
+
+    ###
+    ### Manage Action Space
+    ###
 
 
     def _get_ID_index(self, position):

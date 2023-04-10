@@ -25,12 +25,24 @@ class Trainer():
         self.with_rendering = with_rendering
 
         self.net = net
-        self.gen_mcts = MCTS(net, mc_search, mc_depth)
+        self.gen_mcts = MCTS(net, mc_search, mc_depth, boost=True)
         self.compet_net = None
 
         self.model_name = model_name
 
         self.history = []
+
+    def rotate(self, state, probs_array, amount):
+        '''
+        Rotate state and corresponding probs to handle rotation
+        '''
+        new_state = np.copy(state)
+        new_state[:, :-1] = np.roll(new_state[:, :-1], amount, axis=1)
+
+        new_probs_array = np.copy(probs_array)
+        new_probs_array[:, :, :-1] = np.roll(new_probs_array[:, :, :-1], amount, axis=2)
+
+        return new_state, new_probs_array
 
     def generate_episode(self):
         """
@@ -42,18 +54,34 @@ class Trainer():
                                    winner_verbose=True)
 
         step = 0
-        while True and step < 100:
+        while True and step < 70:
             step += 1
-            temperature = 1 if step < 50 else 0
+            temperature = 1 if step < 30 else 0
 
             state = game_manager.get_state()
+
             player = game_manager.player
             turn = game_manager.turn
+
+            if step == 1:
+                seen_states = []
+            else:
+                seen_states = [step[0] for step in episode_steps]
+
+            # Set the first_bug for the beginning of the episode
+            self.gen_mcts.game_manager.first_bug_placed = game_manager.first_bug_placed
             probs_array = self.gen_mcts.get_policy_vector(state,
-                                                      turn,
-                                                       player,
-                                                       temperature)
-            episode_steps.append([state, player, turn, probs_array, None])
+                                                          seen_states,
+                                                          turn,
+                                                          player,
+                                                          temperature)
+
+
+            # Manage every rotation
+            for n_rot in range(6):
+                rotated_state, rotated_probs_array = self.rotate(state, probs_array, n_rot)
+                episode_steps.append([rotated_state, player, turn, rotated_probs_array, None])
+
             possibles_actions = np.argwhere(probs_array > 0)
             possibles_actions_probs = probs_array[possibles_actions[:, 0],
                                                   possibles_actions[:, 1],
@@ -86,8 +114,8 @@ class Trainer():
 
     def train(self):
 
-        n_steps = 150
-        n_episodes = 5
+        n_steps = 100
+        n_episodes = 3
 
         for i in range(1, n_steps + 1):
             # Generate episodes
@@ -101,10 +129,13 @@ class Trainer():
             self.history.append(episodes_steps)
 
             # We keep 10 times the amount of episodes per step
-            if len(self.history) > 10*n_episodes:
+            while len(self.history) > 10:
                 self.history.pop(0)
 
             self.save_history(i-1)
+
+            length_text = colored(f"Training on {len(self.history)} episodes", "blue")
+            print(length_text)
 
             steps_samples = []
             for episodes_steps in self.history:
@@ -115,7 +146,7 @@ class Trainer():
                                      filename=f"model_{self.model_name}_{i-1}.pth.tar")
             #self.compet_net.load_ckpt(folder="models",
             #                         filename="temp.pth.tar")
-            self.net.train(steps_samples, n_epochs=10)
+            self.net.train(steps_samples, n_epochs=1)
             self.net.save_ckpt(folder="models",
                                      filename=f"model_{self.model_name}_{i}.pth.tar")
 

@@ -10,19 +10,20 @@ class BoardSprite(pg.sprite.Sprite):
         super(BoardSprite, self).__init__()
         board_size = (int(0.9*screen_size[0]),
                       int(screen_size[1]))
+        self.board_size = board_size
 
         self.surf = pg.Surface(board_size)
         self.surf.fill((210, 130, 0))
         # We want a max of 22 pieces on the board
-        self.piece_x_scale = (board_size[0]/44) / 64
-        self.piece_y_scale = (board_size[1]/32) / 64
+        self.piece_x_scale = (board_size[0]/22) / 64
+        self.piece_y_scale = (board_size[1]/16) / 64
         self.rect = self.surf.get_rect()
         # Center the board horizontally
 
         self.sprite_pieces = []
 
 
-    def update_pieces(self, pieces):
+    def update_pieces(self, pieces, no_transparencies):
         self.sprite_pieces = None
         self.sprite_pieces = []
         for piece in pieces:
@@ -30,12 +31,15 @@ class BoardSprite(pg.sprite.Sprite):
                                       bug_name=piece.bug_name,
                                       scale=[self.piece_x_scale, self.piece_y_scale])
 
-            piece_sprite.rect[0] = piece.position[0] * 32 * self.piece_x_scale
-            piece_sprite.rect[1] = piece.position[1] * 46 * self.piece_y_scale
+            piece_sprite.rect[0] = piece.position[0] * 32 * self.piece_x_scale - self.board_size[0]/2
+            piece_sprite.rect[1] = piece.position[1] * 46 * self.piece_y_scale - self.board_size[1]/2
             piece_sprite.z = piece.position[2]
 
             # Beetle modification
             piece_sprite.set_scale(1 - 0.1*piece_sprite.z)
+            if len(no_transparencies) != 0:
+                if piece.ID not in no_transparencies:
+                    piece_sprite.set_transparency(30)
 
             self.sprite_pieces.append(piece_sprite)
 

@@ -42,6 +42,9 @@ class GameManager():
         self.winner = 0
         self.winner_verbose = winner_verbose
 
+        self.first_bug_placed = None
+
+
 
 
         self._init_game()
@@ -65,6 +68,8 @@ class GameManager():
                                               rendering_manager=self.rendering_manager,
                                               interactive=self.interactive)
 
+        else:
+            self.rendering_manager = None
         self.logic_manager = LogicManager(game_manager=self)
 
 
@@ -99,6 +104,7 @@ class GameManager():
 
         # If the turn is one then, the piece must be placed in the center directly
         if self.turn == 1:
+            self.first_bug_placed=bug_name
             self.logic_manager.create_select_piece(bug_name=bug_name)
 
             self.logic_manager.move_select_piece(position=[43, 22, 0])
@@ -207,9 +213,11 @@ class GameManager():
         self._check_win()
         self.turn += 1
         self.player = 1 if self.player == 2 else 2
-        #print(f"Turn {self.turn}")
 
-        self.logic_manager.reload_board_with_connections()
+        if not self.logic_manager.is_bee_placed(1):
+            self.logic_manager.reload_board_with_connections(first_bug=self.first_bug_placed)
+        else:
+            self.logic_manager.reload_board_with_connections()
 
         if self.with_rendering:
             self._update_board_rendering()
@@ -283,6 +291,8 @@ class GameManager():
     def get_state(self):
         # Turn 1 and 2 are the same since there's no connection
         # We need to tell which pieces has been played on turn 1
+        if self.turn == 1:
+            return np.ones((22, 7)) * -1
         if self.turn == 2:
             piece = self.logic_manager.pieces[0]
             return np.ones((22, 7)) * value_dic[piece.bug_name]
@@ -302,7 +312,16 @@ class GameManager():
         self.winner = 0
         if player == 2:
             c_state = self.logic_manager.revert_connected_array(c_state)
-        self.logic_manager.load_connections_array(c_state)
+        bee_line = c_state[0]
+
+        # If bee line is the same, white bee hasn't been placed
+        if np.all(bee_line == bee_line[0]):
+            self.logic_manager.load_connections_array(c_state, first_bug=self.first_bug_placed)
+        else:
+            self.logic_manager.load_connections_array(c_state)
+
+        if self.rendering_manager is not None:
+            self.rendering_manager.no_transparencies = [piece.ID for piece in self.logic_manager.pieces]
 
     def get_legal_connected_action_space(self):
         return self.logic_manager.get_legal_connected_action_space(self.player, self.turn)
@@ -319,6 +338,7 @@ class GameManager():
         connected_ID = action_index[1] + 1
         if self.player != 1:
             connected_ID = connected_ID + 11 if connected_ID < 12 else connected_ID - 11
+
         #print("Real piece ID ", real_piece_ID)
         #print("Action asked ", action_index)
         #print("Player ", self.player)
@@ -332,8 +352,13 @@ class GameManager():
         # Handle add_actions
         if start_pos is None:
             bug_name = self.logic_manager._get_bug_name_from_ID(action_index[0] + 1)
+            self.first_bug_placed = bug_name if self.turn == 1 else self.first_bug_placed
             bug_index = value_dic[bug_name]
             start_pos = [bug_index, -1, -1]
+        # If we move a piece, we set it transparent
+        elif (self.rendering_manager is not None and
+              real_piece_ID in self.rendering_manager.no_transparencies):
+            self.rendering_manager.no_transparencies.remove(real_piece_ID)
         # Handle turn 1
         if self.turn == 1:
             end_pos = [43, 22, 0]

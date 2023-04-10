@@ -3,6 +3,7 @@ import math
 import time
 
 from game.GameManager import GameManager
+from game.Utilities import name_dic
 
 EPS = 1e-8
 
@@ -12,8 +13,9 @@ class MCTS():
     Class used to perform MCTS from a given state
     """
 
-    def __init__(self, net, n_search, max_depth):
+    def __init__(self, net, n_search, max_depth, boost=False):
         self.net = net
+        self.boost = boost
 
         # Headless game manager to make MCTS
         self.game_manager = GameManager(with_rendering=False)
@@ -39,10 +41,12 @@ class MCTS():
         self.P = {}
         self.V = {}
 
-    def get_policy_vector(self, state, turn, player, temperature=1):
+    def get_policy_vector(self, state, seen_states, turn, player, temperature=1):
         for i in range(self.n_search):
+            if turn == 1:
+                self.game_manager.first_bug_placed = None
             self.game_manager.load_state(state, turn, player)
-            self._perform_tree_search(state, self.max_depth)
+            self._perform_tree_search(state, turn, seen_states, self.max_depth)
 
         s = self._hash(state)
         visit_counts = np.zeros((11, 22, 7))
@@ -67,9 +71,9 @@ class MCTS():
         probs = visit_counts / visit_counts_sum
         return probs
 
-    def _perform_tree_search(self, state, max_depth=100, depth=1):
+    def _perform_tree_search(self, state, turn, seen_states, max_depth=100, depth=1, tree_previous_trans={}):
         """
-        Perform a tree search recursively
+        Perform a tree search recursively without redoing the same actions
         """
         s = self._hash(state)
 
@@ -85,15 +89,31 @@ class MCTS():
         # Policy of s is unknown so init with network
         if s not in self.P:
             self.P[s], value = self.net.predict(state)
+
+
+            # Boost for the beginning
+            if self.boost:
+                indexes_far_from_bee = []
+                for bug_index in range(11):
+                    if 12 not in state[bug_index]:
+                        indexes_far_from_bee.append(bug_index)
+
+            self.P[s][indexes_far_from_bee, 11, :] = 1000
+
             valids = self.game_manager.get_legal_connected_action_space()
+
 
             sum_probs = np.sum(self.P[s])
             self.P[s] /= sum_probs
 
             self.V[s] = valids
             self.N_s_counts[s] = 0
+
+
             return -value
         valids = self.V[s]
+        if turn == 5 or turn == 6:
+            valids = self.game_manager.get_legal_connected_action_space()
 
         best_value = -float('inf')
         best_action_index = [0, 0, 0]
@@ -101,6 +121,10 @@ class MCTS():
 
         for a in self.game_manager.possible_connected_actions:
             if valids[(*a,)]:
+                # We prevent redoing a (s, a) couple not to loop during MCTS
+                if s in tree_previous_trans and tree_previous_trans[s] == a:
+                    continue
+
                 if (s, *a) in self.Q_values:
                     u = self.Q_values[(s, *a)] + self.cpuct * self.P[s][(*a,)] * math.sqrt(self.N_s_counts[s]) / (1 + self.N_sa_counts[(s, *a)])
                 else:
@@ -109,13 +133,20 @@ class MCTS():
                     best_value = u
                     best_action_index = a
 
+        tree_previous_trans[s] = a
+
         current_player = self.game_manager.player
         next_state, next_player, next_turn = self.game_manager.handle_connected_action(best_action_index)
+
+        # We remove the played transitions to avoid infinite loop
+        for seen_state in seen_states:
+            if np.array_equal(seen_state, next_state):
+                self.V[s][(*best_action_index,)] = 0
 
         if depth >= max_depth:
             return -best_value if current_player != next_player else best_value
 
-        value = self._perform_tree_search(next_state, max_depth, depth+1)
+        value = self._perform_tree_search(next_state, next_turn, seen_states, max_depth, depth+1)
 
         a = best_action_index
         if (s, *a) in self.Q_values:
