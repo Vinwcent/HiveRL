@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import sys
 
 from reinf.MCTS import MCTS
 from game.GameManager import GameManager
@@ -44,14 +45,64 @@ class Trainer():
 
         return new_state, new_probs_array
 
-    def generate_episode(self):
+    def start_play(self):
+
+        game_manager = GameManager()
+
+        step = 0
+        episode_steps = []
+        while True:
+            step += 1
+            if game_manager.winner != 0:
+                sys.exit()
+
+            if game_manager.player == 1:
+                game_manager.event_handler.interactive = True
+                game_manager.event_handler.check_events()
+                game_manager.rendering_manager.render()
+            else:
+                game_manager.event_handler.interactive = False
+
+                temperature = 0 if step < 30 else 0
+                state = game_manager.get_state()
+                player = game_manager.player
+                turn = game_manager.turn
+
+                if step == 1:
+                    seen_states = []
+                else:
+                    seen_states = [step[0] for step in episode_steps]
+
+                # Set the first_bug for the beginning of the episode
+                self.gen_mcts.game_manager.first_bug_placed = game_manager.first_bug_placed
+                probs_array = self.gen_mcts.get_policy_vector(state,
+                                                              seen_states,
+                                                              turn,
+                                                              player,
+                                                              temperature)
+                for n_rot in range(6):
+                    rotated_state, rotated_probs_array = self.rotate(state, probs_array, n_rot)
+                    episode_steps.append([rotated_state, player, turn, rotated_probs_array, None])
+                possibles_actions = np.argwhere(probs_array > 0)
+                possibles_actions_probs = probs_array[possibles_actions[:, 0],
+                                                      possibles_actions[:, 1],
+                                                      possibles_actions[:, 2]]
+                index = np.random.choice(len(possibles_actions), p=possibles_actions_probs)
+                action = possibles_actions[index]
+                game_manager.handle_connected_action(action)
+
+            game_manager.rendering_manager.render()
+
+
+
+    def generate_episode(self, winner_verbose=False):
         """
         Create an episode
         """
         episode_steps = []
         game_manager = GameManager(interactive=False,
                                    with_rendering=self.with_rendering,
-                                   winner_verbose=True)
+                                   winner_verbose=winner_verbose)
 
         step = 0
         while True and step < 70:
@@ -156,7 +207,8 @@ class Trainer():
                                 f"gen_game_by_{old_model_name}_{num_model-1}.examples")
         with open(filename, "rb") as f:
             self.history = Unpickler(f).load()
-        history_text = colored(f"History loaded with {len(self.history)} episodes", "red")
+        history_text = colored(f"History loaded with {len(self.history)} iterations",
+                               "red")
         print(history_text)
 
         self.net.load_ckpt(filename=f"model_{old_model_name}_{num_model}.pth.tar")

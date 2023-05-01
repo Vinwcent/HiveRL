@@ -246,6 +246,7 @@ class GameManager():
             if self.with_rendering:
                 self.rendering_manager.render()
 
+
     def update_render(self):
         self.rendering_manager.render()
 

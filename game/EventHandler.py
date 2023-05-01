@@ -83,8 +83,8 @@ class EventHandler():
         Get the logic position of a sprite piece
         '''
         rect_x, rect_y = sprite_piece.rect_position()
-        j = round(rect_y / (46 * self.board.piece_y_scale))
-        i = round(rect_x / (32 * self.board.piece_x_scale))
+        j = round((rect_y + self.board.board_size[1]/2) / (46 * self.board.piece_y_scale))
+        i = round((rect_x + self.board.board_size[0]/2) / (32 * self.board.piece_x_scale))
         return [i, j, sprite_piece.z]
 
     def _get_logic_position_from_mouse(self):

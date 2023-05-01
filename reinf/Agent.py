@@ -1,4 +1,4 @@
-from reinf.networks import DQN, NetworkManager
+from reinf.DQN import DQN, NetworkManager
 from reinf.memory import ReplayMemory, Transition
 
 import torch

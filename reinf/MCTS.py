@@ -18,7 +18,7 @@ class MCTS():
         self.boost = boost
 
         # Headless game manager to make MCTS
-        self.game_manager = GameManager(with_rendering=False)
+        self.game_manager = GameManager(with_rendering=True)
 
         self.reset_tree()
 
@@ -98,7 +98,7 @@ class MCTS():
                     if 12 not in state[bug_index]:
                         indexes_far_from_bee.append(bug_index)
 
-            self.P[s][indexes_far_from_bee, 11, :] = 1000
+                self.P[s][indexes_far_from_bee, 11, :] = 1000
 
             valids = self.game_manager.get_legal_connected_action_space()
 

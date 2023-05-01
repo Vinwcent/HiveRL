@@ -12,9 +12,10 @@ from reinf.HiveNet import HiveNet
 
 device = torch.device("mps")
 net = HiveNet(device)
-trainer = Trainer(model_name="train5", net=net, with_rendering=True)
-trainer.load_history_and_net("train4", 13)
+trainer = Trainer(model_name="Train_from_pretraining",
+                  net=net,
+                  with_rendering=True)
+trainer.load_history_and_net("pretraining", 30)
 
-while True:
-    trainer.generate_episode()
 trainer.train()
+# trainer.start_play()

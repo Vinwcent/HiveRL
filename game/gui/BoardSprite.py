@@ -51,8 +51,8 @@ class BoardSprite(pg.sprite.Sprite):
 
             piece_sprite.set_transparency(150)
             # We calculate and center since the surf is referenced by top left
-            piece_sprite.rect[0] = position[0] * 32 * self.piece_x_scale
-            piece_sprite.rect[1] = position[1] * 46 * self.piece_y_scale
+            piece_sprite.rect[0] = position[0] * 32 * self.piece_x_scale - self.board_size[0]/2
+            piece_sprite.rect[1] = position[1] * 46 * self.piece_y_scale - self.board_size[1]/2
             piece_sprite.z = position[2]
             self.sprite_pieces.append(piece_sprite)
 

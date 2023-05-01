@@ -12,6 +12,8 @@ class HiveNet():
         self.device = device
         self.raw_net = Net().to(device)
 
+        self.losses = []
+
     def torch_converter(self, tensor):
         float_tensor = np.array(tensor).astype(np.float64)
         torch_tensor = torch.FloatTensor(float_tensor)
@@ -69,6 +71,7 @@ class HiveNet():
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+            self.losses.append([probs_losses, value_losses])
 
     def predict(self, state):
         '''
@@ -84,11 +87,15 @@ class HiveNet():
 
     def save_ckpt(self, folder="models", filename="checkpoint.pth.tar"):
         filepath = os.path.join(folder, filename)
-        torch.save({'state_dict': self.raw_net.state_dict()}, filepath)
+        torch.save({
+            'state_dict': self.raw_net.state_dict(),
+            'losses': self.losses
+        }, filepath)
 
     def load_ckpt(self, folder="models", filename="checkpoint.pth.tar"):
         filepath = os.path.join(folder, filename)
-        checkpoint = torch.load(filepath, map_location=None)
+        checkpoint = torch.load(filepath, map_location=torch.device('mps'))
+        self.losses = checkpoint['losses']
         self.raw_net.load_state_dict(checkpoint['state_dict'])
 
 
