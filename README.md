@@ -10,7 +10,7 @@ Here is a GIF of the generation of a game.
 
 <img src="https://user-images.githubusercontent.com/91033856/235407976-13716e9d-2c0c-40f9-8aba-7562891547db.gif" width=50% height=50%>
 
-You can find more informations about the algorithm on the follow PDF
+You can find more informations about the algorithm on the following PDF
 
 ## Resume training
 If you have computational power and want to train it even further, look at the
