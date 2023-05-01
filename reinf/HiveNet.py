@@ -94,7 +94,7 @@ class HiveNet():
 
     def load_ckpt(self, folder="models", filename="checkpoint.pth.tar"):
         filepath = os.path.join(folder, filename)
-        checkpoint = torch.load(filepath, map_location=torch.device('mps'))
+        checkpoint = torch.load(filepath, map_location=torch.device('cuda'))
         self.losses = checkpoint['losses']
         self.raw_net.load_state_dict(checkpoint['state_dict'])
 
